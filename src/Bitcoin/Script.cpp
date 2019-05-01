@@ -7,7 +7,7 @@
 #include "Script.h"
 
 #include "Address.h"
-#include "Bech32Address.h"
+#include "SegwitAddress.h"
 #include "CashAddress.h"
 
 #include "../BinaryCoding.h"
@@ -16,7 +16,6 @@
 #include "../Hash.h"
 #include "../PublicKey.h"
 #include "../Zcash/TAddress.h"
-#include "../Zelcash/TAddress.h"
 
 #include <TrustWalletCore/TWBitcoinOpCodes.h>
 #include <TrustWalletCore/TWP2PKHPrefix.h>
@@ -138,7 +137,7 @@ bool Script::matchMultisig(std::vector<std::vector<uint8_t>>& keys, int& require
         if (!res) {
             break;
         }
-        if (!TW::PublicKey::isValid(operand)) {
+        if (!TW::PublicKey::isValid(operand, TWPublicKeyTypeSECP256k1)) {
             break;
         }
         keys.push_back(operand);
@@ -252,11 +251,12 @@ void Script::encode(std::vector<uint8_t>& data) const {
 }
 
 Script Script::buildForAddress(const std::string& string) {
-    static const std::vector<uint8_t> p2pkhPrefixes = {TWP2PKHPrefixBitcoin, TWP2PKHPrefixLitecoin,
-                                                       TWP2PKHPrefixDash, TWP2PKHPrefixZcoin};
-    static const std::vector<uint8_t> p2shPrefixes = {TWP2SHPrefixBitcoin, TWP2SHPrefixLitecoin,
-                                                      TWP2SHPrefixDash, TWP2SHPrefixZcoin};
-
+    static const std::vector<uint8_t> p2pkhPrefixes = {TWP2PKHPrefixBitcoin, TWP2PKHPrefixIocoin, TWP2PKHPrefixLitecoin,
+                                                       TWP2PKHPrefixDash, TWP2PKHPrefixZcoin, TWP2PKHPrefixViacoin,
+                                                       TWP2PKHPrefixDogecoin, TWP2PKHPrefixQtum};
+    static const std::vector<uint8_t> p2shPrefixes = {TWP2SHPrefixBitcoin, TWP2SHPrefixIocoin, TWP2SHPrefixLitecoin,
+                                                      TWP2SHPrefixDash, TWP2SHPrefixZcoin, TWP2SHPrefixViacoin,
+                                                      TWP2SHPrefixDogecoin, TWP2SHPrefixLux};
     if (Address::isValid(string)) {
         auto address = Address(string);
         auto p2pkh = std::find(p2pkhPrefixes.begin(), p2pkhPrefixes.end(), address.bytes[0]);
@@ -275,8 +275,8 @@ Script Script::buildForAddress(const std::string& string) {
             std::copy(address.bytes.begin() + 1, address.bytes.end(), std::back_inserter(data));
             return buildPayToScriptHash(data);
         }
-    } else if (Bech32Address::isValid(string)) {
-        auto result = Bech32Address::decode(string);
+    } else if (SegwitAddress::isValid(string)) {
+        auto result = SegwitAddress::decode(string);
         // address starts with bc/ltc
         auto program = result.first.witnessProgram;
         return buildPayToWitnessPubkeyHash(program);
@@ -300,12 +300,6 @@ Script Script::buildForAddress(const std::string& string) {
         }
     } else if (Zcash::TAddress::isValid(string)) {
         auto address = Zcash::TAddress(string);
-        auto data = std::vector<uint8_t>();
-        data.reserve(Address::size - 2);
-        std::copy(address.bytes.begin() + 2, address.bytes.end(), std::back_inserter(data));
-        return buildPayToPublicKeyHash(data);
-    } else if (Zelcash::TAddress::isValid(string)) {
-        auto address = Zelcash::TAddress(string);
         auto data = std::vector<uint8_t>();
         data.reserve(Address::size - 2);
         std::copy(address.bytes.begin() + 2, address.bytes.end(), std::back_inserter(data));
